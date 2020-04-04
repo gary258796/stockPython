@@ -49,7 +49,7 @@ db = pymysql.connect(
     host='localhost',
     port=3306,
     user='root',
-    passwd="urpassword",
+    passwd="gary258976",
     db='gary-python-stock')
 _connection = None
 
