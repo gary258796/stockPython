@@ -6,7 +6,7 @@ import yfinance as yf
 ssl._create_default_https_context = ssl._create_unverified_context
 response = urllib.request.urlopen('https://www.python.org')
 
-proxies = ['', '61.220.204.25:3128', '52.140.242.103:3128', '60.251.40.84:1080']
+proxies = ['', '52.140.242.103:3128', '60.251.40.84:1080', '', '', '', ''] #'61.220.204.25:3128'
 # yahoo finance相關function( not useful now )
 class myStock():
     def __init__(self, stockNum):
