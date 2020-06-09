@@ -23,6 +23,8 @@ except ImportError:
     flags = None
 
 
+# 取得和 Google Drive要用的credential
+# token.pickle 是從google drive上面取得
 def getCredential():
     creds = None
     # The file token.pickle stores the user's access and refresh tokens, and is

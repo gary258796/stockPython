@@ -16,7 +16,6 @@ import oneDrive_IO as oneDrive_API
 import yfinanceGetData as yfcusGetData
 import atexit
 
-
 # ssl auth change to no need
 ssl._create_default_https_context = ssl._create_unverified_context
 response = urllib.request.urlopen('https://www.python.org')
@@ -44,6 +43,7 @@ def getDriveService(DriveName):
 serviceorclient = getDriveService("onedrive")
 lock = Lock()
 noDataList = [["" for x in range(2)] for y in range(1)]
+failUpdateDataList = [["" for x in range(2)] for y in range(1)]
 hasData = True
 db = pymysql.connect(
     host='localhost',
@@ -52,6 +52,22 @@ db = pymysql.connect(
     passwd="gary258976",
     db='gary-python-stock')
 _connection = None
+load_type = None
+tw_int = 0
+jp_int = 0
+us_int = 0
+
+def exit_handler():
+    if failUpdateDataList != None:
+        store_to_mysql(failUpdateDataList)
+    elif noDataList != None:
+        store_to_mysql(noDataList)
+
+    tw, jp, us, type = getInt()
+    store_progress_mysql(tw, jp, us, type)
+
+
+atexit.register(exit_handler)
 
 
 def get_connection():
@@ -179,8 +195,8 @@ def getStockHistorybyYahooandStore2Drive(stockCodeList, driveName, period, start
     print('child process : {}'.format(os.getpid()))
     global serviceorclient
     for i in range(len(stockCodeList)):
-
-        bool_proxy = True
+        setInt(stockCodeList[i], i)
+        bool_proxy = False
         # get all need info for storage and scathing
         need_info_dict = getFilePathandDriverFileId_Dictionary(stockCodeList[i], interval)
         for retry in range(10):  # at most retry 10 times
@@ -242,10 +258,17 @@ def getOriginalDataId(folderId, stockCode):
 
 def updateHistoryandStore2Drive(stockCodeList, driveName, period, start, end, interval, bool_action):
     for i in range(len(stockCodeList)):
+        setInt(stockCodeList[i], i)
         bool_proxy = False
         # get all need info for storage and scathing
         need_info_dict = getFilePathandDriverFileId_Dictionary(stockCodeList[i], interval)
-        originalDataId = getOriginalDataId(dict['onedriveFolderId'], stockCodeList[i])
+        originalDataId = getOriginalDataId(need_info_dict['onedriveFolderId'], need_info_dict['stock_str'] + '.csv')
+
+        if originalDataId == None:
+            logging.error("Stock : " + need_info_dict['stock_str'] + " fail to update in folder : " + need_info_dict['onedriveFolderId'])
+            failUpdateDataList.append([stockCodeList[i], interval])
+            break
+
         oneDrive_API.downloadFile(serviceorclient, originalDataId, './original_Data.csv')
         originalData = pd.read_csv("original_Data.csv")
         for retry in range(10):  # at most retry 10 times
@@ -260,6 +283,7 @@ def updateHistoryandStore2Drive(stockCodeList, driveName, period, start, end, in
                 csvOfDataFrame(final_Data, need_info_dict['createPath'])
             except:  # have error
                 logging.info("Catch exception.", exc_info=True)
+
                 print("Unexpected error in line 194:", sys.exc_info()[0])
 
                 if retry < 9:
@@ -267,6 +291,8 @@ def updateHistoryandStore2Drive(stockCodeList, driveName, period, start, end, in
                     print("Retry the %d time." % (retry + 1))
                 if (retry + 1) > 5:
                     bool_proxy = False  # fail over five times, cancel using proxy and use myself
+                if retry == 9:
+                    failUpdateDataList.append([stockCodeList[i], interval])
             else:  # if no error
                 # store to drive
                 if driveName == "onedrive":
@@ -432,32 +458,83 @@ def getAllorUpdatebyPool(getAll):
     store_to_mysql(noDataList)
 
 
+def initInt(type):
+    global tw_int
+    global jp_int
+    global us_int
+    global load_type
+    tw_int = 0
+    jp_int = 0
+    us_int = 0
+    load_type = type
+
+
+def setInt(stockCode, num):
+    global tw_int
+    global jp_int
+    global us_int
+    if stockCode[-2:] == "TW":
+        tw_int = num
+    elif stockCode[-2:] == ".T":
+        jp_int = num
+    else:
+        us_int = num
+
+
+def getInt():
+    global tw_int
+    global jp_int
+    global us_int
+    global load_type
+    return tw_int, jp_int, us_int, load_type
+
+
 def getAllorUpdate(getAll):
-    tw_stock_list, jp_stock_list, us_stock_list = getStockList()
+    # tw_stock_list, jp_stock_list, us_stock_list = getStockList()
     #
     begin = time.time()
     # # MultiProcessing
 
+    jp_stock_list = []
+    jp_stock_list.append("3462.T")
+    jp_stock_list.append("6762.T")
+    jp_stock_list.append("4755.T")
+    jp_stock_list.append("2698.T")
+    jp_stock_list.append("3197.T")
+    jp_stock_list.append("2730.T")
+    jp_stock_list.append("3073.T")
+    jp_stock_list.append("3047.T")
+    jp_stock_list.append("2914.T")
+    jp_stock_list.append("8897.T")
+
+
     if getAll:
         print("\nStart get 1m data. \n\n")
-        getStockHistorybyYahooandStore2Drive(tw_stock_list, "onedrive", "7d", None, None, "1m", False)
+        initInt("1m")
+        # getStockHistorybyYahooandStore2Drive(tw_stock_list, "onedrive", "7d", None, None, "1m", False)
         getStockHistorybyYahooandStore2Drive(jp_stock_list, "onedrive", "7d", None, None, "1m", False)
-        getStockHistorybyYahooandStore2Drive(us_stock_list, "onedrive", "7d", None, None, "1m", False)
+        # getStockHistorybyYahooandStore2Drive(us_stock_list, "onedrive", "7d", None, None, "1m", False)
 
         ##
-        print("\nStart get 2m data. \n\n")
-        end = dt.date.today()
-        days = dt.timedelta(59)
-        start = str(end - days)
-        end = str(end)
-        getStockHistorybyYahooandStore2Drive(tw_stock_list, "onedrive", None, start, end, "2m", False)
-        getStockHistorybyYahooandStore2Drive(jp_stock_list, "onedrive", None, start, end, "2m", False)
-        getStockHistorybyYahooandStore2Drive(us_stock_list, "onedrive", None, start, end, "2m", False)
-        ##
-        print("\nStart get 1h data. \n\n")
-        getStockHistorybyYahooandStore2Drive(tw_stock_list, "onedrive", "2y", None, None, "1h", False)
-        getStockHistorybyYahooandStore2Drive(jp_stock_list, "onedrive", "2y", None, None, "1h", False)
-        getStockHistorybyYahooandStore2Drive(us_stock_list, "onedrive", "2y", None, None, "1h", False)
+
+        # print("\nStart get 2m data. \n\n")
+        # end = dt.date.today()
+        # days = dt.timedelta(59)
+        # start = str(end - days)
+        # end = str(end)
+        # initInt("2m")
+        # getStockHistorybyYahooandStore2Drive(tw_stock_list, "onedrive", None, start, end, "2m", False)
+        # getStockHistorybyYahooandStore2Drive(jp_stock_list, "onedrive", None, start, end, "2m", False)
+        # getStockHistorybyYahooandStore2Drive(us_stock_list, "onedrive", None, start, end, "2m", False)
+        # ##
+        # print("\nStart get 1h data. \n\n")
+        # initInt("1h")
+        # getStockHistorybyYahooandStore2Drive(tw_stock_list, "onedrive", "2y", None, None, "1h", False)
+        # getStockHistorybyYahooandStore2Drive(jp_stock_list, "onedrive", "2y", None, None, "1h", False)
+        # getStockHistorybyYahooandStore2Drive(us_stock_list, "onedrive", "2y", None, None, "1h", False)
+        #
+        # print("Store error stockCode to db....")
+        # store_to_mysql(noDataList)
 
         # ##
         # pool.starmap(getStockHistorybyYahooandStore2Drive,
@@ -469,38 +546,41 @@ def getAllorUpdate(getAll):
         # # 60 day 2m （要把資料貼上）
         # # 2 year 1h (要把資料貼上)
         # # 兩年以上 需要再撈
-    elif not getAll:
-        updateHistoryandStore2Drive(tw_stock_list, "onedrive", "1d", None, None, "1m", False)
-        updateHistoryandStore2Drive(jp_stock_list, "onedrive", "1d", None, None, "1m", False)
-        updateHistoryandStore2Drive(us_stock_list, "onedrive", "1d", None, None, "1m", False)
-        ##
-        end = dt.datetime().today()
-        days = dt.timedelta(59)
-        start = str(end - days)
-        end = str(end)
-        updateHistoryandStore2Drive(tw_stock_list, "onedrive", "1d", None, None, "2m", False)
-        updateHistoryandStore2Drive(jp_stock_list, "onedrive", "1d", None, None, "2m", False)
-        updateHistoryandStore2Drive(us_stock_list, "onedrive", "1d", None, None, "2m", False)
-        ##
-        updateHistoryandStore2Drive(tw_stock_list, "onedrive", "1d", None, None, "1h", False)
-        updateHistoryandStore2Drive(jp_stock_list, "onedrive", "1d", None, None, "1h", False)
-        updateHistoryandStore2Drive(us_stock_list, "onedrive", "1d", None, None, "1h", False)
-        # ##
-        # pool.starmap(getStockHistorybyYahooandStore2Drive,
-        #                      [(tw_stock_list, "onedrive", "20y", None, None, "1d", True),
-        #                       (jp_stock_list, "onedrive", "20y", None, None, "1d", True),
-        #                       (us_stock_list, "onedrive", "20y", None, None, "1d", True)])
-
-        # # 7 day one min  1m (要把資料貼上 )
-        # # 60 day 2m （要把資料貼上）
-        # # 2 year 1h (要把資料貼上)
-        # # 兩年以上 需要再撈
+    # elif not getAll:
+    #     initInt("1m")
+    #     updateHistoryandStore2Drive(tw_stock_list, "onedrive", "1d", None, None, "1m", False)
+    #     updateHistoryandStore2Drive(jp_stock_list, "onedrive", "1d", None, None, "1m", False)
+    #     updateHistoryandStore2Drive(us_stock_list, "onedrive", "1d", None, None, "1m", False)
+    #     ##
+    #     end = dt.date.today()
+    #     days = dt.timedelta(59)
+    #     start = str(end - days)
+    #     end = str(end)
+    #     initInt("2m")
+    #     updateHistoryandStore2Drive(tw_stock_list, "onedrive", "1d", None, None, "2m", False)
+    #     updateHistoryandStore2Drive(jp_stock_list, "onedrive", "1d", None, None, "2m", False)
+    #     updateHistoryandStore2Drive(us_stock_list, "onedrive", "1d", None, None, "2m", False)
+    #     ##
+    #     initInt("1h")
+    #     updateHistoryandStore2Drive(tw_stock_list, "onedrive", "1d", None, None, "1h", False)
+    #     updateHistoryandStore2Drive(jp_stock_list, "onedrive", "1d", None, None, "1h", False)
+    #     updateHistoryandStore2Drive(us_stock_list, "onedrive", "1d", None, None, "1h", False)
+    #
+    #     print("Store error stockCode to db....")
+    #     store_to_mysql(failUpdateDataList)
+    #     # ##
+    #     # pool.starmap(getStockHistorybyYahooandStore2Drive,
+    #     #                      [(tw_stock_list, "onedrive", "20y", None, None, "1d", True),
+    #     #                       (jp_stock_list, "onedrive", "20y", None, None, "1d", True),
+    #     #                       (us_stock_list, "onedrive", "20y", None, None, "1d", True)])
+    #
+    #     # # 7 day one min  1m (要把資料貼上 )
+    #     # # 60 day 2m （要把資料貼上）
+    #     # # 2 year 1h (要把資料貼上)
+    #     # # 兩年以上 需要再撈
 
     end = time.time()
     logging.info("execute time : " + str(end - begin))
-
-    print("Store error stockCode to db....")
-    store_to_mysql(noDataList)
 
 
 def main():
@@ -522,14 +602,9 @@ def mainn():
 
     do = True
     if do:
-        end = dt.date.today()
-        days = dt.timedelta(59)
-        start = str(end - days)
-        end = str(end)
-        # getStockHistorybyYahooandStore2Drive(us_stock_list[1:2], "onedrive", "1d", None, None, "1m", False)
-        a = getStockHistorybyYahoo("AAPL", "1d", None, None, "1m", False, False)
-        print(a)
-
+        # print(findUsStockIndexbyName(tw_stock_list, "1906.TW"))
+        originalDataId = getOriginalDataId('5A0F35AAEC914ADB!18186', '1906.csv')
+        oneDrive_API.downloadFile(serviceorclient, originalDataId, './original_Data.csv')
 
 if __name__ == '__main__':
     main()

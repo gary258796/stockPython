@@ -1,0 +1,12 @@
+# 編譯過後產生的資料夾
+venv/
+# 存放log
+Log/
+# csvFile 底下放xls檔案 是為了讀取股票代號用
+csvFile/
+
+
+*.csv
+*.xlsx
+*.pickle
+*.json
