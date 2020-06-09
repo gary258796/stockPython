@@ -2,10 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="1b0bb4ef-2f21-4774-b837-76ee42eebbc7" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/googleDrive_IO.py" beforeDir="false" afterPath="$PROJECT_DIR$/googleDrive_IO.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/oneDrive_IO.py" beforeDir="false" afterPath="$PROJECT_DIR$/oneDrive_IO.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/stockMain.py" beforeDir="false" afterPath="$PROJECT_DIR$/stockMain.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
